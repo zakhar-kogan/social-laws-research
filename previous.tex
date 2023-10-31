@@ -1,0 +1,42 @@
+\section{Previous version}
+\subsection{Environment}
+The environment is given by a STRIPS language \cite{fikes_strips_1971} tuple $\langle F, I, \left\{ A_i \right\}_{i=1}^n, \left\{ O_i \right\}_{i=1}^n, \left\{ G_i \right\}_{i=1}^n  \rangle$, where:
+\begin{itemize}
+    \item \textit{F} is a set of Boolean facts which describe the state of the world;
+    \item $I \subseteq F$ represents the initial state;
+    \item $A_i$ is the set of actions that agent $i$ can perform. For action $a$, we denote by $s[a]$ the state resulting from applying action $a$ in state $s$. For the sake of convenience we assume there is some state $\perp$ which is a dead-end state, and applying an illegal/impossible action leads to it;
+    \item     $O_i \subseteq F$ represents the observations/belief state for agent \textit{i}, that is, an incomplete set of facts individual for an agent. $O_i$ is defined as a subset of $2^F$, or $O_i \subseteq 2^F$;
+    \item $G_i \subseteq F$ represents the goal for agent $i$, that is, a state $s$ that satisfies the goal $G_i \iff s_i \subseteq G_i$. 
+
+\end{itemize}
+\subsubsection{Belief state}
+At each step, an agent $i$ infers updated facts $O_i \subseteq 2^{F}$ from either:
+\begin{itemize}
+    \item its surroundings (e.g. if there's a fact $f_{42}$: $\neg TurnedOn(3, 15)$;
+    \item       other agents (depending on the nature of environment, it can either be neighboring agents or anything like clusters/agents of same type/random agents).
+\end{itemize}
+As these facts are the results of previous actions, they are used to update the $O_i$ belief state as follows: $O: 2^F \to O_i$.
+\subsubsection{Actions}
+An action requires certain facts to be true/false, and not lead to a dead end state $\perp$ to be possible.
+\subsubsection{Individual projection}
+An individual agent $i$ is given by a tuple $\langle F, I, A_i, O_i, G_i \rangle$ and ignores all the actions/belief states instead of those for agent $i$.
+Individual projection is a technique that allows each agent to project its own causal model onto the joint model of all agents, and use it to plan and act independently. Also, individual projection helps agents deal with different types of partial observability, such as hidden variables, missing data, or noisy observations \cite{adami_competing_2020, ai_deep_2022}
+\subsection{Agent program/choice}
+\subsubsection{Agent program}
+An agent $i$ acts in a way that can be formalized as a function $P: 2^O \rightarrow A_i \cup \{noop\}$, that is, a function that ingests the current belief state, then decides on and takes an action (or does nothing, $noop$).
+\subsubsection{Agent system}
+The whole multi-agent system is defined as a set of programs $P_1,...,P_n$ for agents $i_1,...,i_n$ as follows: $\Sigma: \langle F, I, \left\{ A_i \right\}_{i=1}^n, \left\{ O_i \right\}_{i=1}^n, \left\{ G_i \right\}_{i=1}^n, \left\{ P_i \right\}_{i=1}^n \rangle$. 
+\subsubsection{Causal Graph}
+A causal graph is given as a DAG cited from \cite{Andres2016Oct}:
+Let $P_i$ be a Contingent Planning Problem for agent $i$ defined by an agent program $P_i = \langle F, I, A_i, O_i, G_i \rangle$. 
+The causal graph of $P_i, Cg(P_i)$ is a $DAG (V, E)$ where $V = F$, containing an edge $(X, Y)\ iff\ X \neq Y$ and there is an effect $C \to Y$ and $X \in C,$ or an action $a$ with an effect $C \to Y$ such that $X \in P rec(a)$.
+\subsubsection{Trajectories}
+An agent $i$ has possible trajectories of actions leading from state $s_0$ to a state $s^n$ represented by a tuple $t: \langle s_0, a_1, s_1, ..., s_n \rangle$.
+\subsubsection{Social law}
+A social law $l$ for agent program $P$ is a function  $l: F \to 2^A$ that assigns/maps a set of allowed actions to each state. The set of all social laws for the environment is defined by $L: l \in L$.
+\subsubsection{Possible actions and choosing the trajectory}
+For a set of actions $A$, and at a state $S$ with a set of boolean facts $F$ an agent $i$ will have possible actions such that they belong to a set of actions not leading to a dead end state $\perp $, and they are complying with social laws $L$: $valid(t) \Rightarrow (a \in A) \land\ (a \Vdash L) \land\  \neg(a \Rightarrow \perp)$
+
+For a tuple of actions to be possible, each action from the tuple should not lead to $\perp$ to the agent's knowledge: $(\forall a \in \langle s_0, a_1, s_1, ..., s_n \rangle) \land (\forall {a_1...a_n} \neg \Rightarrow \perp)$
+% \bibliography{part-obs}
+\printbibliography

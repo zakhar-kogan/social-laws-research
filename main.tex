@@ -1,0 +1,340 @@
+\documentclass[fleqn,10pt]{olplainarticle}
+% Use option lineno for line numbers 
+\title{Partially observable planning with sensing | Draft}
+
+\author[1]{Zakhar Kogan}
+\affil[1]{zakhark@technion.ac.il}
+
+ \keywords{Keyword1, Keyword2, Keyword3}
+
+\begin{abstract}
+ Formalizing social laws with partial knowledge and sensing
+\end{abstract}
+
+\begin{document}
+
+\flushbottom
+\maketitle
+% \thispagestyle{empty}
+\section*{Introduction} \label{intro}
+\subsection{Preliminary notes}
+\begin{enumerate}
+    \item Formalizing social laws with partial knowledge
+    \item Finding examples where social laws help
+    \item Partially observable planning with sensing -> formalization, combining with MA + waitfor
+\end{enumerate}
+\subsection{Additional}
+\begin{itemize}
+    \item You can only wait for facts you always know the value, or the ones you can sense
+    \item So we need to keep polling/sensing for the value of $f$, so we know when it changes
+    \item And if another agent destroys the precondition, we are stuck
+    \item Other agents can't interfere with that
+\end{itemize}
+\subsection{Images}
+\href{https://photos.app.goo.gl/BBTc944Szh7fuWvw5}{Link to the album}
+\subsection{Tasks}
+\begin{itemize}
+    \item Formalize \textit{As soon as an agent stops sensing the fact, it can be changed by other agents -> dynamic environment} with:
+\end{itemize}
+\begin{enumerate}
+        \item Static observations
+        \item Dynamic observations
+\end{enumerate}
+
+\section{Social laws in partially observable environments}
+\subsection{Combined actions}
+A notion of a sensing action was overviewed in \cite{maliah_partially_2014}, dividing actions into:
+\begin{description}[font=\bfseries]
+\item [Actuation action] $a \in A_{act}$ is a pair, ${pre(a), effects(a)}$, where $pre(a)$ is a set of literal preconditions, and $effects(a)$ is a set of pairs $(c, e)$ denoting conditional effects.
+\item [Sensing action] A sensing action $a \in A_{sense}$ is a pair, ${pre(a), obs(a)}$, where $pre(a)$ is identical to the previous definition, and $obs(a)$ is a set of propositions in $P$ whose value is observed when $a$ is executed.
+\end{description}
+\subsubsection{Thought}
+Sensing action as a particular case of action (usually with \href{https://en.wikipedia.org/wiki/Side_effect_(computer_science)}{no side effects}, speaking computer science). 
+\subsubsection{Rationale}
+\begin{itemize}
+    \item Some/all (?) actuation actions change current belief state, e.g., taking a turn will influence visibility of other areas potentially important. Or parking/stopping on the side of the road will block pedestrian visibility for other agents.
+    \item Some sensing actions change the world state incl. for other agents, e.g., using a LIDAR may interfere with other agents and influence their actions \cite{bhupathiraju_emi-lidar_2023}
+\end{itemize}
+\subsubsection{Definition}
+A combined action $a\in A$ is a triple tuple $(pre(a), obs(a), effects(a))$, where:
+\begin{itemize}
+    \item $pre(a)$ is a set of literal preconditions
+    \item $obs(a)$ is a set of propositions in $P$ whose value is observed when $a$ is executed
+    \item $effects(a)$ is a set of pairs $(c, e)$ denoting conditional effects.
+\end{itemize}
+\subsection{Waitfor + updating the state}
+When an agent is operating under $waitfor$ conditions, it has an additional set of preconditions that postpone an execution of an action to synchronize \cite{karpas_automated_2017}.
+
+However, one can only act on things one knows the value of, and an agent is no exception.
+Let's consider an example: an agent has a set of preconditions (some $waitfor$, some ordinary), and a $waitfor$ precondition is satisfied at time $t$. Then an agent has to:
+\begin{itemize}
+    \item Consider other preconditions unless they are nigh-immutable once satisfied (e.g. a bridge was opened) by sensing them;
+    \item Re-check if the $waitfor$ precondition is still satisfied. There are several reasons to that: another agent may change the world state, changing the facts and destroying the precondition.
+\end{itemize}
+
+In the end, an agent needs to keep sensing for the value of $f$ so that it has not only a complete set of preconditions for an action satisfied, but a current one. 
+\textbf{Thought}: This can be included in the set of observations as $decay$ or $age$ parameter, i.e. an observation for agent $i$ could now be a tuple $\sigma_i=(observation, age)$.
+\subsection{Definitions}
+\subsubsection{Environment}
+The environment is given by a STRIPS formalism \cite{fikes_strips_1971} tuple, further expanded by \cite{maliah_partially_2014}  and \cite{karpas_automated_2017}:
+\begin{equation}
+Pi = \langle F, \left\{ A_{act} \right\}_{i=1}^n, \left\{ A_{sense} \right\}_{i=1}^n, \Omega, \left\{ O_i \right\}_{i=1}^n, I, \left\{ G_i \right\}_{i=1}^n \rangle \text{, where:} 
+\end{equation}
+\begin{itemize}
+    \item \textit{F} is a set of Boolean facts which describe the state of the world;
+    \item $\{A_{sense} \cup A_{act}\} \subseteq A$ is the tuple of actions that agent $i$ can perform:
+    \begin{itemize}
+        \item $A_{sense}$ are sensing actions, i.e., they change an agent's belief state: $A_{i, sense}(B_i, O_{A_i}) \rightarrow B_i'$
+        \item $A_{act}$ are actuation actions that change the world state, $F$: $A_{i, act}(F) \rightarrow F'$
+    \end{itemize}
+For action $a$, we denote by $s[a]$ the state resulting from applying action $a$ in state $s$. For the sake of convenience we assume there is some state $\perp$ which is a dead-end state, and applying an illegal/impossible action leads to it. Action types are formalized in \ref{actions};
+\item $\Omega$ is a set of possible observation;
+    \item     $O_i \subseteq F: 2^F \times A_i \times 2^F \rightarrow 2^\Omega$ represents the observation function - a mapping of possible transitions to possible observations; 
+    \item     $I \subseteq F$ represents the initial state;
+    \item $G_i \subseteq F$ represents the goal for agent $i$, that is, a state $s$ that satisfies the goal $G_i \iff s_n \subseteq G_i$. \label{goal}
+\end{itemize}
+\subsubsection{Actions} \label{actions}
+An action is a possible change of the world state mapping current state $s$ to an updated $s'$, denoted as, following the execution of $a$ in belief state $b$: $s'=a(s,b(s))$
+\subsubsection{Sensing and actuation actions}
+A notion of sensing actions was overviewed in \cite{maliah_partially_2014}, dividing actions into:
+\begin{description}
+\item [Actuation action] $a \in A_{act}$ is a pair, ${pre(a), effects(a)}$, where $pre(a)$ is a set of literal preconditions, and $effects(a)$ is a set of pairs $(c, e)$ denoting an effect $e$ and the effect condition $c$ (conditional effects are further defined in \ref{cond-eff}). The result of applying action $a$ in state $s$ is $(s \backslash del(a)) \cup add(a)$. 
+The execution of an actuation action $a$ at state $s$ results in changed belief state $b$: $b_a = \{a(s)|s \in b\}$. \label{belief-state}
+\item [Sensing action] A sensing action $a \in A_{sense}$ is a pair, ${pre(a), obs(a)}$, where $pre(a)$ is identical to the previous definition, and $obs(a)$ is a set of propositions in $P$ whose value is observed when $a$ is executed. 
+\end{description}
+
+An agent can also wait for executing an action. $waitfor$ precondition allows for additional coordination at a risk of deadlocks. We will use $pre_w(a)$ for $waitfor$ preconditions and $pre_f(a)$ for action preconditions \cite{karpas_automated_2017}:
+\begin{itemize}
+    \item $pre(a) = pre_w(a) \cup pre_f(a)$
+    \item If an action $a$ has $waitfor$ preconditions $pre_w(a)$, the agent will postpone its execution until agent's belief state satisfies them: $b_i \subseteq pre_w(a)$
+    \item If an agent $i$ is waiting for a precondition, and all the other agents are waiting for their preconditions, too - we can say the system in in a $deadlock$ state, equal to the $deadend$ state, $\perp$
+    \item If an action is executed when only $waitfor$ preconditions are satisfied, then an action will fail: $failed(a) = a(s)|(o \subseteq pre_w(a)) \land (b \subseteq pre_f(a)) \land (pre_f(a) \notin s)$
+\end{itemize}
+
+\subsubsection{Conditional effects} \label{cond-eff}
+An action can have preconditions $pre(a)$ as well as effects applied under several conditions. This allows for greater execution flexibility.
+
+The pair $effects(a) = (c, e)$ is defined as the effect and a fact condition necessary for the effect to be applied. Thus, the set of effects can be defined as follows: 
+\begin{equation}
+    \begin{aligned}
+    &\left\{add(e), del(e) \vert (c \subseteq c(effects), c = True \right\} \text{, or} \\
+    &c \subseteq c(effects) \land c \implies add(e) \lor del(e)
+    \end{aligned}
+\end{equation}
+
+An \textbf{example} of this: a firefighting robot approaches the site. It has a sense action $SenseFire()$ that returns fire type as $ChemicalFire$ or $OilFire$. It's a precondition to using a certain type of extinguisher in $Extinguish$, i.e.:
+\begin{equation*}
+    \begin{aligned}
+        effects(Extinguish)=&( \\
+        &((ChemicalFire, Adjacent, Direction), \\
+        &OpenWaterExtinguisher),\\
+        &((OilFire, Adjacent, Direction), \\
+        &OpenFoamExtinguisher) \\&)
+    \end{aligned}
+\end{equation*}
+As such, conditional effects may invalidate preconditions/waitfor conditions for other effects or agents. E.g., a cleaner robot may have a precondition to sense foam, which depends on foam extinguisher being used.
+
+More, even with full initial state known, actions of other agents coupled with conditional effects will introduce an additional degree of non-determinism into the system - and we have to account for them in defining the social laws.
+
+\subsubsection{Observations and updating}
+After a sensing action $a_{sense}$ is performed by agent $i$, it registers possible state changes as observations, $o_i$. Observations update the agent's belief state, which is a set of possible states $b_i \subseteq 2^\Omega$ from either:
+\begin{itemize}
+    \item its surroundings (e.g. if there's a fact $f_{42}$: $\neg TurnedOn(3, 15)$;
+    \item       other agents (depending on the nature of environment, it can either be neighboring agents or anything like clusters/agents of same type/random agents).
+\end{itemize}
+
+As per \cite{karpas_automated_2017}, we will use $b_{a,o}$ to denote the belief state following the execution of $a$ in belief state $b$ and the observation $o$: $b_{a,o} = \left\{a(s)|s \in b, s \models o \right\}$. If $a$ is not applicable in all states in $b$ then $b_{a,o}$ is undefined.
+
+\paragraph{Updating}
+When an agent is operating under $waitfor$ conditions, it has an additional set of preconditions that postpone an execution of an action to synchronize \cite{karpas_automated_2017}.
+
+However, one can only act on things one knows the value of, and an agent is no exception.
+Let's consider an example: an agent has a set of preconditions (some $waitfor$, some ordinary), and a $waitfor$ precondition is satisfied at time $t$. Then an agent has to:
+\begin{itemize}
+    \item Consider other preconditions unless they are nigh-immutable once satisfied (e.g. a bridge was opened) by sensing them;
+    \item Re-check if the $waitfor$ precondition is still satisfied. There are several reasons to that: another agent may change the world state, changing the facts and destroying the precondition.
+\end{itemize}
+
+In the end, an agent needs to keep sensing for the value of $f$ so that it has not only a complete set of preconditions for an action satisfied, but a current one. 
+
+A potential situation where all agents are simultaneously sensing for updates is a form of livelock: $\forall i: a_{sense} \implies \perp$, similar to a situation with reactive agents (\cite{tuisov_automated_2020}).
+\subsubsection{Agent projection} \label{agent-projection}
+A single-agent projection (agent program) for agent $i$ is defined as $P: 2^{2^F} \rightarrow A_i \cup {noop}$, i.e., taking current belief state and choosing the next action, or $noop$ if doing nothing/waiting, for agent $i$. Another way of defining is $P: b_i \times 2^F \rightarrow A_i \cup noop$.
+
+\begin{description}
+\item [Agent system] $\langle \Pi, \left\{P_i\right\}_{i=1}^n \rangle$ is a set of agent programs $P_1...P_n$ for agents $1... n$ in a multi-agent environment 
+\begin{equation}
+\Pi = \langle F, \left\{ A_{act} \right\}_{i=1}^n, \left\{ A_{sense} \right\}_{i=1}^n, \Omega, \left\{ O_i \right\}_{i=1}^n, I, \left\{ G_i \right\}_{i=1}^n \rangle
+\end{equation}
+\end{description}
+
+Starting with initial state, an agent belief states and actions form a decision tree $\tau = (N,E)$, with belief states as nodes and actions as edges. \label{trajectory}
+
+Traversing the nodes and edges results in possible trajectories in the form of $T = \langle s_0, a_0, s_1, a_1, ..., s_n \rangle$:
+\begin{itemize}
+    \item $s_0 = I$, the trajectory starts at initial state;
+    \item $\forall n=0...n-1: s_{n+1}=a_i(s_i)$, each state is a result of applying an action to the current one;
+    \item $\exists ja_n = P_j(B_j[s_0,a_0,...,s_{n-1}])$, where $B_j$ is the belief state which results from tracking the trajectory observed by agent $j$, and the action $a_n$ chosen at state $s_n$ was chosen according to $P_j$;
+    \item $\forall j: (P_j(B_j[s_n]) = noop) \land (s_n \neq \perp)$, the trajectory ends when all the agents have finished, and the state is not a dead-end of any type. \label{finish}
+\end{itemize}
+
+A trajectory is valid iff $g_i \subseteq s_n$, the last state contains the goal state.
+
+\subsubsection{Joint trajectory graph}
+
+Given a tree $\tau$, each agent $i$ has its own set of possible trajectories $2^F \times N[\tau] \times E[\tau] \rightarrow T_i$ . Some of the state nodes can be common with other agents, resulting in a sparsely connected joint trajectory graph.
+
+A trajectory for the multi-agent system is valid iff $\forall i: g_i \subseteq s_n$, for all agents the last state satisfices their goal states. 
+
+\subsection{Social laws} \label{soc-laws}
+A social law is a form of coordination in multi-agent systems, intuitively being a restriction of agent's allowed actions, thus minimizing possible conflicts and allowing offline, decentralized agent actions.
+
+We will define a social law $l$, part of a set of social laws $l \subseteq L$, as an extension from previous papers (\cite{karpas_automated_2017}): 
+\begin{itemize}
+    \item Waiting until a condition holds, $pre_w(a)$
+    \item Action effects happening under certain conditions, as a pair $(l_{add}(a), l_{del}(a))$
+\end{itemize}
+
+Ideally, a social law must be:
+\begin{itemize}
+    \item [Minimal] More social laws usually mean more conditions an agent has to abide, increasing the chance of restrictive slowdowns, lock situations and dead ends
+    \item [Useful, robust] A social law is useful if it allows all the agents to reach their goals with no deadlocks considering:
+    \begin{itemize}
+        \item [Partially observable setting] An agent only 'sees' some part of the environment, resulting in beliefs, regardless of agent's current belief state. 
+        \item [Dynamic setting] A robust social law would work regardless of other agents joining/leaving the environment.
+        \item [Conditional effects] Within the domain defined in this document, actions can have conditional effects (\ref{cond-eff}), and a social law is only useful if it works despite additional non-determinism introduced by conditional effects and actions of other agents.
+    \end{itemize}
+\end{itemize}
+
+\label{soc-law}
+We will denote social law $l$ as part of the set of social laws $l \subseteq L$ extending previous work (\cite{karpas_automated_2017}) for modified environment conditions. It takes the problem $\Pi$ and modifies it according to effect and precondition modifiers $l: \Pi \rightarrow \Pi'$. 
+
+\subsubsection{Optional | Agent policy}
+With partial observability and non-deterministic effects, an agent has a \textit{policy} rather than a plan (\cite{muise_computing_2014}, defined by $\pi \subseteq \mathcal P$.
+
+It can be viewed, among other ways, as a branching decision tree described before, $\tau$. Another way is to view the \textit{policy} as a partial function from agent's current state $P_i$ to actions, $\pi: P_i \rightarrow a_i$.
+
+The policy is hence a way to traverse the trajectory graph, which is limited, or modified, by social laws to ensure robustness.
+
+\subsubsection{Optional | Composite robustness} \label{comp-rob}
+With increasing number of agents, action types, environment size, and adding non-deterministic effects almost any problem will be subject to the curse of dimensionality. 
+
+There are several approaches addressing that for planning, starting with online planning (\cite{maliah_computing_2022}), sampling (\cite{cimatti_automated_2015} and others, loosely divided into centralized and decentralised approaches (\cite{frasheri_glocal_nodate}).
+
+The proposed approach is hybrid: it combines initial centralized planning, social law and decision tree generation, with offline/decentralized decision-making.
+
+The notion of \textit{composite robustness}, usable for some systems with repeatable elements (e.g., a warehouse with intersections, shelves, corners etc.),  is as follows:
+\begin{description}
+    \item[Single element] We can divide the environment into separate local elements $j \subseteq \mathcal J$ that are to be checked for robustness.
+    \item[Induction / Conjunction] If all constinuent parts are robust, then by law of conjunction, and serving as a kind of induction step, they comprise the whole environment being robust, 
+\begin{equation}
+        \forall j \, (Robust(j)) \Rightarrow (Robust(\mathcal J) \land Robust(\Pi))
+    \end{equation}
+\end{description}
+
+\subsubsection{Definition}
+A social law $l$  in a set of social laws $L$ for multi-agent environment $\Pi$ is robust if and only if:
+\begin{description}
+    \item[Any point in trajectory] All agents $P_1...P_n$ are able to reach their final goals $g_i$ regardless of current position on joint trajectory tree:     \begin{equation}
+        \exists L \vert \forall i, s_i: g_i \subseteq s_n
+    \end{equation}
+    \item[No deadlocks] There are no situations where all agents enter a dead end (constant waitfor) or livelock (constant sensing) states:     \begin{equation}
+    \exists L \vert \forall i: \neg \exists s_i \ s.t.\ (s_n = \perp)
+    \end{equation}
+    \item [Conditional effects] Agents are able to reach their goals regardless of states brought by conditional effects arising (definition as per \ref{soc-law}):    \begin{equation}
+        \begin{aligned}
+            \exists L \vert \forall \tau_i, \forall c(effects) \in \tau: g_i \subseteq s_n
+        \end{aligned}
+    \end{equation}
+    \\\\
+    Optional:
+    \item[Composite robustness] As per \ref{comp-rob}, a set of logical laws $L$ is robust if and only if all its constinuents are robust:    \begin{equation}
+        \exists L \vert \forall j \subseteq \mathcal{J}: Robust(L) \iff Robust(j)
+    \end{equation}
+    And, by extension, a multi-agent system $\Pi$ is robust if and only if social laws for all the composite environment parts are robust:
+\begin{equation}
+    Robust(\Pi) \iff \forall j \subseteq \mathcal{J}: Robust(L)
+\end{equation}
+    \item[Agents joining and leaving] All the agents at $s_n$ have reached their goals considering agents $i$ could be a part of the system $\Pi$. We could differentiate here: an additional case of strong robustness (theoretical, strict) would be that all agents that were a part of system during its existence should be able to reach their goals. For 'practical' case, the definition can be as follows:  \begin{equation}
+        \exists L \vert P \in \Pi, s_n: g_i \subseteq s_n
+    \end{equation}
+\end{description}
+
+\subsection{Proposed definition} \label{prop-env}
+A simplified environment was proposed as follows:
+\begin{itemize}
+    \item Offline planning
+    \item Fixed number of agents
+    \item Full/partial observability
+    \item Conditional effects
+\end{itemize}
+
+For a social law $l \subseteq L$ to be robust in this domain, it has to allow the following:
+\begin{enumerate}
+    \item Every agent reaches its goal regardless of current world/belief state
+    \item There's no state such that all agents enter a dead end or a livelock
+    \item Agents reach their goal regardless of possible conditional effects,
+\end{enumerate}
+or in terms of logic:
+\begin{equation}
+    \exists l \subseteq L \vert \forall i:
+    \begin{cases}      
+        1. &\forall b_i \subseteq s_t : g_i \subseteq s_n  \\
+        2. &\neg \exists s_n \ s.t.\ s_n = \perp \\
+        3. &\forall \tau_i, \forall c(effects)[A] \in \tau: g_i \subseteq s_n \\
+    \end{cases} 
+    \text{, where}
+\end{equation}
+\begin{description}
+    \item[$l$] Social law (\ref{soc-law}): restricting some actions, adding/deleting preconditions or waitfor preconditions
+    \item[$L$] The set of social laws, $l \subseteq L$
+    \item[$i$] Agent index
+    \item[$b_i$] Belief state for agent $i$ (\ref{belief-state}), that is, a set of assumptions about the world's state given agent's observations and actions, of a size $2^{2^F}$ (\ref{agent-projection}
+    \item[$s_t$] World state at time $t$
+    \item[$g_i$] Goal state for agent $i$ (\ref{goal}), i.e. a state when agent's goal is reached, which is not a dead end/livelock: $G_i \iff (s_n \subseteq G_i) \land (\forall i: P_i[s_n] \neq waitfor, P_i[s_n] \neq A_{sense})$
+    \item[$s_n$] Final state for the environment, i.e., $P_i(B_i[s_n]) = noop$
+    \item[$\perp$] Dead end or livelock state, $\forall i: P_i[s_n] \in \langle waitfor, noop \rangle$
+    \item[$\tau_i$] Trajectory path for agent $i$ (\ref{trajectory})
+    \item[\textit{c(effects)[A]}] Conditional effects for action $A$ (\ref{cond-eff})
+    \
+\end{description}
+
+Further, let $\lambda \in \{partial, full\}$ indicate the observability of the environment.
+For full observability (assuming all the agents know current state $s_i$, and action effects/outcomes are known on execution), we'll have to change definition 1 so it doesn't include belief states:
+\begin{equation}
+    \exists l \subseteq L \vert \forall i:
+    \forall s_i : g_i \subseteq s_n
+\end{equation}
+
+\subsection{Example use cases}
+\subsubsection{Features}
+Let's first define the distinctive features of this domain invariant:
+\begin{itemize}
+    \item [PO] Partially observable / contingent environment
+    \item [CE] Conditional effects
+    \item [DA] Dynamic agent setting, agents can join or leave the environment
+    \item [OP] Online ($s \rightarrow a \rightarrow s'$) planning, as described in \cite{maliah_computing_2022}
+    \item [MA] Multiple agents interacting simultaneously
+    \item [RT*] Potentially, soft/hard real-time requirements
+\end{itemize}
+\subsubsection{Use cases}
+\begin{description}
+\item[Autonomous driving] Multiple agents in a contingent environment. Some of the agents do not communicate (connection difficulties/agent types), other agents may be human-controlled. Online planning because of changing environment.
+\item[Agent swarm control] E.g. autonomous drones. Multiple, potentially heterogeneous agents, the group may change with time (say, in military setting). Real-time requirements depending on domain.
+\item [Disaster response] Partially observable environment (incl. cases where sensing can hinder other agents' efficiency), online planning required due to dynamic environment.
+\end{description}
+\subsection{Further research}
+\begin{itemize}
+    \item [Dynamic goals] Goals can change during plan execution. E.g., an autonomous car is given a new address to drive to. This amounts to re-building the plan or, in the ideal case - just continuing given the social laws are robust?
+    \item [Goal queues] The same situation, but the autonomous car is a taxi. Does it plan the next goal in advance, or just save it in RabbitMQ-esque style?
+    \item [Subgoals] A disaster response drone must find no less than five people in the plane debris. So it has goals $\langle g_1, g_2, ..., g_n \rangle \subseteq G_d$, with all the subgoals comprising the composite/final agent goal. So, some mechanism of finalising a subgoal (goal can be failed, or impossible to attain - say, when the road is blocked) + criteria for completion are needed in that case?
+\item [Integration with CV] A mechanism of tracking that object with $id_{128}=...$ or other identificator/set of descriptors is indeed mapped to $f_n \subset F$. Possible references: \href{https://github.com/jbhuang0604/awesome-computer-vision}{Awesome CV}
+\item [Causal graph of facts] So that an agent can reason that observation $o_n$ changed facts $f_1...f_m$ because of their connections written down, e.g., $\langle carAhead, avgSpeedLess20 \rangle \implies (trafficJam \lor accident)$
+\item [Visual GUI] A GUI for PDDL domain definition a-la \href{https://reactflow.dev/}{reactflow}? More of a productized thing, not that practical in scientific approach.
+\item [Neurosymbolic approaches] E.g. \cite{dagan_dynamic_2023} - LLM planning coupled with traditional planning. Claims are for increased performance; and this can potentially be fine-tuned for with code-aligned LLMs like \href{https://github.com/facebookresearch/codellama}{CodeLLaMa} etc.
+\end{itemize}
+
+% \bibliography{part-obs}
+\printbibliography
+
+\end{document}
